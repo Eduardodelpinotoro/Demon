@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Diablo RPG - Mazmorra One-Page Dungeon | Ataque de Fuego Ampliado</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent;}
+        body{background:#050508;overflow:hidden;font-family:'Segoe UI',system-ui;touch-action:none;}
+        canvas{width:100%!important;height:100%!important;outline:none;}
+        
+        .diablo-hud{
+            position:fixed;
+            bottom:30px;
+            left:0;
+            right:0;
+            display:flex;
+            justify-content:center;
+            gap:32px;
+            z-index:250;
+            pointer-events:none;
+        }
+        .orb{
+            width:60px;
+            height:60px;
+            border-radius:50%;
+            background:#2a1a1a;
+            border:3px solid #b89a6a;
+            box-shadow:0 0 15px rgba(0,0,0,0.5);
+            position:relative;
+            overflow:hidden;
+            backdrop-filter:blur(4px);
+            pointer-events:none;
+        }
+        .orb-inner{
+            position:absolute;
+            bottom:0;
+            left:0;
+            right:0;
+            background:#c0392b;
+            transition:height 0.2s;
+            height:100%;
+        }
+        .orb-mana .orb-inner{background:#2980b9;}
+        
+        .sidebar-menu{
+            position:fixed;
+            top:16px;
+            right:16px;
+            z-index:270;
+            display:flex;
+            flex-direction:column;
+            align-items:flex-end;
+            gap:8px;
+        }
+        .sidebar-top-row{
+            display:flex;
+            gap:8px;
+            align-items:center;
+        }
+        .zoom-btn{
+            background:rgba(30,25,45,0.85);
+            backdrop-filter:blur(8px);
+            border:1px solid #c8aa4e;
+            width:36px;
+            height:36px;
+            border-radius:30px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:22px;
+            font-weight:bold;
+            color:#f7d86c;
+            cursor:pointer;
+            box-shadow:0 2px 8px black;
+            transition:0.1s;
+        }
+        .zoom-btn:active{transform:scale(0.92);}
+        .menu-toggle-btn{
+            background:rgba(30,25,45,0.85);
+            backdrop-filter:blur(8px);
+            border:1px solid #c8aa4e;
+            width:36px;
+            height:36px;
+            border-radius:30px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:20px;
+            color:#f7d86c;
+            cursor:pointer;
+        }
+        .menu-toggle-btn:active{transform:scale(0.92);}
+        .sidebar-panel{
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+            background:rgba(14,10,24,0.92);
+            backdrop-filter:blur(14px);
+            border:1px solid #c8aa6e;
+            border-radius:16px;
+            padding:10px 12px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.6);
+            pointer-events:auto;
+            transform:translateX(120%);
+            opacity:0;
+            transition:transform 0.22s cubic-bezier(0.22,1,0.36,1), opacity 0.18s;
+        }
+        .sidebar-panel.open{
+            transform:translateX(0);
+            opacity:1;
+        }
+        .hud-btn{
+            background:linear-gradient(145deg,#2c2418,#1f1a10);
+            border:1px solid #c8aa6e;
+            width:36px;
+            height:36px;
+            border-radius:50%;
+            font-size:18px;
+            cursor:pointer;
+            color:#f0d89e;
+            box-shadow:0 2px 6px black;
+            transition:0.05s linear;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .hud-btn:active{transform:scale(0.92);background:#3a2e1e;}
+        
+        .character-selector{
+            display:flex;
+            gap:6px;
+            margin-top:4px;
+            justify-content:center;
+        }
+        .char-btn{
+            background:#2a2418;
+            border:1px solid #b89a6a;
+            padding:4px 8px;
+            border-radius:24px;
+            font-size:12px;
+            color:#f7d86c;
+            cursor:pointer;
+            text-align:center;
+            font-weight:bold;
+        }
+        .char-btn.active{
+            background:#c8aa4e;
+            color:#1a1508;
+            border-color:#ffdf99;
+        }
+        
+        .joystick-area{
+            position:fixed;
+            bottom:20px;
+            left:20px;
+            width:130px;
+            height:130px;
+            z-index:300;
+            touch-action:none;
+        }
+        .joystick-base{
+            position:absolute;
+            inset:0;
+            background:rgba(10,10,20,0.6);
+            border-radius:50%;
+            border:2px solid rgba(210,180,100,0.5);
+            backdrop-filter:blur(8px);
+        }
+        .joystick-knob{
+            position:absolute;
+            width:54px;
+            height:54px;
+            background:radial-gradient(circle at 35% 35%,#cbb86e,#7a5c2e);
+            border-radius:50%;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            box-shadow:0 0 8px #ffd966;
+            transition:transform 0.05s linear;
+            pointer-events:none;
+            border:1px solid #efcd7e;
+        }
+        .action-buttons{
+            position:fixed;
+            bottom:20px;
+            right:20px;
+            z-index:250;
+            display:flex;
+            gap:12px;
+            align-items:center;
+        }
+        .action-btn{
+            width:58px;
+            height:58px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:26px;
+            cursor:pointer;
+            box-shadow:0 2px 16px rgba(0,0,0,0.5);
+            backdrop-filter:blur(6px);
+            transition:0.05s linear;
+            border:2px solid rgba(255,255,200,0.7);
+        }
+        .action-btn:active{transform:scale(0.92);}
+        .btn-magic-left{background:rgba(50,100,200,0.9);border-color:#6a9aff;color:#fff;font-size:24px;}
+        .btn-fire-right{background:rgba(220,80,10,0.88);border-color:#ff6020;color:#fff;}
+        
+        .map-overlay{
+            position:fixed;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            width:340px;
+            height:340px;
+            background:rgba(0,0,0,0.82);
+            border:2px solid rgba(255,200,80,0.55);
+            border-radius:12px;
+            backdrop-filter:blur(4px);
+            z-index:500;
+            display:none;
+            flex-direction:column;
+            pointer-events:auto;
+            box-shadow:0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .map-header{
+            background:transparent;
+            padding:6px;
+            text-align:center;
+            color:rgba(255,210,80,0.8);
+            font-weight:bold;
+            font-size:11px;
+            letter-spacing:3px;
+            text-transform:uppercase;
+            border-bottom:1px solid rgba(255,200,80,0.2);
+        }
+        .map-canvas-container{
+            flex:1;
+            padding:8px;
+        }
+        canvas#miniMapCanvas{
+            width:100%;
+            height:100%;
+            background:transparent;
+            border-radius:6px;
+            display:block;
+        }
+        .map-close{
+            position:absolute;
+            top:-10px;
+            right:-10px;
+            width:26px;
+            height:26px;
+            background:rgba(100,30,10,0.9);
+            border-radius:50%;
+            text-align:center;
+            line-height:24px;
+            font-size:12px;
+            font-weight:bold;
+            color:rgba(255,200,100,0.9);
+            cursor:pointer;
+            border:1px solid rgba(255,180,60,0.5);
+        }
+        
+        .death-screen{
+            position:fixed;
+            inset:0;
+            background:#0a0000dd;
+            z-index:1000;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+            color:#e0b84c;
+            font-size:32px;
+            backdrop-filter:blur(10px);
+            gap:20px;
+            font-weight:bold;
+        }
+        .restart-btn{
+            background:#a5652a;
+            border:none;
+            padding:12px 32px;
+            font-size:24px;
+            border-radius:60px;
+            color:white;
+            cursor:pointer;
+        }
+        .hide{display:none;}
+        
+        @media (max-width:700px){
+            .orb{width:50px;height:50px;}
+            .action-btn{width:48px;height:48px;font-size:22px;}
+            .joystick-area{width:110px;height:110px;}
+            .joystick-knob{width:44px;height:44px;}
+            .hud-btn{width:32px;height:32px;font-size:16px;}
+            .zoom-btn, .menu-toggle-btn{width:32px;height:32px;font-size:18px;}
+            .char-btn{font-size:10px; padding:2px 6px;}
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="diablo-hud">
+        <div class="orb" id="health-orb"><div class="orb-inner" id="health-fill" style="height:100%;"></div></div>
+        <div class="orb orb-mana" id="mana-orb"><div class="orb-inner" id="mana-fill" style="height:100%;"></div></div>
+    </div>
+    
+    <div class="sidebar-menu" id="sidebar-menu">
+        <div class="sidebar-top-row">
+            <div class="zoom-btn" id="zoom-in-btn">+</div>
+            <div class="zoom-btn" id="zoom-out-btn">−</div>
+            <div class="menu-toggle-btn" id="menu-toggle-btn">☰</div>
+        </div>
+        <div class="sidebar-panel" id="sidebar-panel">
+            <div class="character-selector">
+                <div id="char-paladin" class="char-btn active">⚔️ Paladín</div>
+                <div id="cam-toggle-btn" class="char-btn">👁️ Cámara</div>
+            </div>
+            <button class="hud-btn" id="inventory-btn" title="Inventario">🎒</button>
+            <button class="hud-btn" id="menu-btn" title="Menú">⚙️</button>
+            <button class="hud-btn" id="map-btn" title="Mapa">🗺️</button>
+        </div>
+    </div>
+    
+    <div class="joystick-area" id="joystick-area"><div class="joystick-base"></div><div class="joystick-knob" id="joystick-knob"></div></div>
+    <div class="action-buttons"><div class="action-btn btn-magic-left" id="magic-btn">✨</div><div class="action-btn btn-fire-right" id="firecone-btn">🔥</div></div>
+    
+    <div id="mapOverlay" class="map-overlay">
+        <div class="map-header" id="map-header-title">— MAZMORRA —</div>
+        <div class="map-canvas-container"><canvas id="miniMapCanvas" width="310" height="310"></canvas></div>
+        <div class="map-close" id="closeMapBtn">✖</div>
+    </div>
+    
+    <div class="death-screen hide" id="death-overlay"><div>💀 HAS MUERTO 💀</div><button class="restart-btn" id="restart-btn">REINICIAR AVENTURA</button></div>
+
+    <script>
+        (function(){
+            const canvas = document.getElementById('gameCanvas');
+            const engine = new BABYLON.Engine(canvas, true);
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.04, 1);
+            
+            // ILUMINACIÓN MEJORADA
+            scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+            scene.fogStart = 8;
+            scene.fogEnd = 35;
+            scene.fogColor = new BABYLON.Color3(0.05, 0.05, 0.08);
+            
+            const ambLight = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
+            ambLight.intensity = 0.25;
+            
+            const dirLight = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-1, -1.2, -0.7), scene);
+            dirLight.intensity = 0.85;
+            dirLight.position = new BABYLON.Vector3(20, 30, 15);
+            dirLight.diffuse = new BABYLON.Color3(1, 0.9, 0.75);
+            dirLight.specular = new BABYLON.Color3(0.25, 0.2, 0.1);
+            
+            const shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            shadowGen.blurKernel = 6;
+            shadowGen.bias = 0.0005;
+            
+            const cam = new BABYLON.FreeCamera('cam', new BABYLON.Vector3(0, 12, 16), scene);
+            scene.activeCamera = cam;
+            
+            // Jugador y estado
+            let player = null;
+            let playerVisualRoot = null;
+            let currentAnimGroups = [];
+            let playerIsMoving = false;
+            
+            let playerHealth = 100;
+            let maxHealth = 100;
+            let currentMana = 100;
+            let maxMana = 100;
+            let baseDamage = 24;
+            let armor = 5;
+            let gold = 0;
+            let currentDepth = 1;
+            let gameActive = true;
+            let enemies = [];
+            let chests = [];
+            let currentDungeonRoot = null;
+            let currentRooms = [];
+            let currentMapData = null;
+            
+            let joystickActive = false;
+            let joystickVector = {x:0, y:0};
+            let keyState = {ArrowUp:false,ArrowDown:false,ArrowLeft:false,ArrowRight:false,w:false,s:false,a:false,d:false};
+            let isoZoom = 1.0;
+            let moveSpeed = 9.5;
+            
+            let camMode = 'third';
+            let camAzimuth = Math.PI * 0.25;
+            let camPitch = 0.0;
+            const CAM_BASE_RADIUS = 16.5;
+            const CAM_BASE_HEIGHT = 11.8;
+            let camCurrentRadius = CAM_BASE_RADIUS;
+            let camCurrentHeight = CAM_BASE_HEIGHT;
+            
+            const PALADIN_URL = 'paladin.glb';
+            let currentCharacter = 'paladin';
+            let isPlayingCombo = false;
+            
+            function _playAnim(name, loop, onEnd){
+                if(!currentAnimGroups.length) return;
+                currentAnimGroups.forEach(ag=>{ try{ ag.stop(); }catch(e){} });
+                const ag = currentAnimGroups.find(a=>a.name.toLowerCase().includes(name.toLowerCase())) || currentAnimGroups[0];
+                try{
+                    ag.start(loop, 1.0, ag.from, ag.to, false);
+                    if(onEnd){
+                        const obs = ag.onAnimationGroupEndObservable.addOnce(()=>{ onEnd(); });
+                    }
+                }catch(e){}
+            }
+            
+            function playComboAttack(){
+                if(!currentAnimGroups.length || isPlayingCombo) return;
+                isPlayingCombo = true;
+                _playAnim('combo', false, ()=>{
+                    isPlayingCombo = false;
+                    _playAnim('idle', true);
+                });
+            }
+            
+            function loadVisualModel(url, callback) {
+                while(playerVisualRoot.getChildren().length > 0){
+                    const child = playerVisualRoot.getChildren()[0];
+                    if(child) child.dispose();
+                }
+                currentAnimGroups = [];
+                BABYLON.SceneLoader.ImportMesh('', '', url, scene, (meshes, _ps, _sk, animationGroups) => {
+                    if(!player || player.isDisposed()) { if(callback) callback(false); return; }
+                    currentAnimGroups = animationGroups || [];
+                    const root = new BABYLON.TransformNode('char_visual', scene);
+                    root.parent = playerVisualRoot;
+                    currentAnimGroups.forEach(ag => {
+                        ag.targetedAnimations.forEach(ta => {
+                            const tgtName = (ta.target && ta.target.name) ? ta.target.name.toLowerCase() : '';
+                            const propName = (ta.animation && ta.animation.targetProperty) ? ta.animation.targetProperty.toLowerCase() : '';
+                            const isRoot = tgtName.includes('hips') || tgtName === '__root__' || tgtName === 'root';
+                            if(isRoot && (propName.includes('position') || propName === 'position')){
+                                ta.animation.setKeys([{frame: ag.from, value: BABYLON.Vector3.Zero()}, {frame: ag.to, value: BABYLON.Vector3.Zero()}]);
+                            }
+                        });
+                    });
+                    const targetHeight = 2.8;
+                    let minY = Infinity, maxY = -Infinity;
+                    meshes.forEach(m => {
+                        if(m.getBoundingInfo){
+                            try {
+                                const bi = m.getBoundingInfo();
+                                if(bi.boundingBox.minimum.y < minY) minY = bi.boundingBox.minimum.y;
+                                if(bi.boundingBox.maximum.y > maxY) maxY = bi.boundingBox.maximum.y;
+                            } catch(e){}
+                        }
+                    });
+                    if(isFinite(minY) && isFinite(maxY) && (maxY - minY) > 0.01){
+                        const modelHeight = maxY - minY;
+                        const scale = targetHeight / modelHeight;
+                        root.scaling.setAll(scale);
+                        root.position.y = (-minY * scale) + 0.35;
+                    } else {
+                        root.scaling.setAll(0.022);
+                        root.position.y = 0.05;
+                    }
+                    root.rotation.y = 0;
+                    meshes.forEach(m => {
+                        m.parent = root;
+                        m.isPickable = false;
+                        m.checkCollisions = false;
+                        shadowGen.addShadowCaster(m);
+                    });
+                    player.isVisible = false;
+                    if(currentAnimGroups.length) _playAnim('idle', true);
+                    if(callback) callback(true);
+                }, null, (err) => {
+                    console.error("Error cargando modelo:", url, err);
+                    if(callback) callback(false);
+                });
+            }
+            
+            function createPlayerCapsule() {
+                if(player) player.dispose();
+                player = BABYLON.MeshBuilder.CreateCapsule('player', {height:1.8, radius:0.45, tessellation:12}, scene);
+                player.position.set(0,0.9,0);
+                player.checkCollisions = true;
+                player.isPickable = false;
+                player.isVisible = false;
+                shadowGen.addShadowCaster(player);
+                if(playerVisualRoot) playerVisualRoot.dispose();
+                playerVisualRoot = new BABYLON.TransformNode('player_visual_root', scene);
+                playerVisualRoot.parent = player;
+                playerVisualRoot.position.y = 0;
+            }
+            
+            function initPlayer() {
+                createPlayerCapsule();
+                loadVisualModel(PALADIN_URL, () => { loadLevel(1); });
+            }
+            
+            function updateUI(){
+                const healthFill = document.getElementById('health-fill');
+                const manaFill = document.getElementById('mana-fill');
+                healthFill.style.height = (playerHealth/maxHealth*100)+'%';
+                manaFill.style.height = (currentMana/maxMana*100)+'%';
+                const alive = enemies.filter(e=>e.alive).length;
+                if(alive===0 && gameActive && currentDungeonRoot && currentDepth<16) nextLevel();
+                const mapHeader = document.getElementById('map-header-title');
+                if(mapHeader) mapHeader.innerText = `— MAZMORRA - NIVEL ${currentDepth} —`;
+            }
+            function nextLevel(){ if(currentDepth<16){ currentDepth++; loadLevel(currentDepth); } }
+            
+            function createExplosion(pos, color1, color2){
+                const ps = new BABYLON.ParticleSystem("exp", 30, scene);
+                ps.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/particle.png", scene);
+                ps.emitter = pos;
+                ps.minEmitBox = new BABYLON.Vector3(-0.3,-0.2,-0.3);
+                ps.maxEmitBox = new BABYLON.Vector3(0.3,0.3,0.3);
+                ps.color1 = color1;
+                ps.color2 = color2;
+                ps.colorDead = new BABYLON.Color4(0,0,0,0);
+                ps.minSize = 0.1;
+                ps.maxSize = 0.3;
+                ps.minLifeTime = 0.2;
+                ps.maxLifeTime = 0.5;
+                ps.emitRate = 80;
+                ps.direction1 = new BABYLON.Vector3(-0.6,-0.2,-0.6);
+                ps.direction2 = new BABYLON.Vector3(0.6,0.8,0.6);
+                ps.start();
+                setTimeout(()=>ps.dispose(), 500);
+            }
+            
+            function castAreaMagic(){
+                if(!gameActive || !player) return;
+                if(currentMana < 30) return;
+                currentMana -= 30;
+                updateUI();
+                const center = player.position.clone();
+                center.y += 1.0;
+                const sphere = BABYLON.MeshBuilder.CreateSphere("magic", {diameter:0.5, segments:16}, scene);
+                sphere.position.copyFrom(center);
+                const mat = new BABYLON.StandardMaterial("magicMat", scene);
+                mat.diffuseColor = new BABYLON.Color3(0.2,0.5,1);
+                mat.emissiveColor = new BABYLON.Color3(0.1,0.3,0.9);
+                mat.alpha = 0.7;
+                sphere.material = mat;
+                let scale = 0.5;
+                const obs = scene.onBeforeRenderObservable.add(() => {
+                    scale += 0.15;
+                    sphere.scaling.setAll(scale);
+                    if(scale >= 5.0){
+                        sphere.dispose();
+                        scene.onBeforeRenderObservable.remove(obs);
+                    }
+                });
+                for(let i=0;i<5;i++) createExplosion(center, new BABYLON.Color4(0.3,0.6,1,1), new BABYLON.Color4(0.1,0.2,0.8,1));
+                for(let e of enemies){
+                    if(!e.alive) continue;
+                    if(BABYLON.Vector3.Distance(center, e.mesh.position) < 5.0){
+                        e.health -= 55;
+                        if(e.health<=0){
+                            if(e.mesh) e.mesh.dispose();
+                            e.alive = false;
+                            dropLoot(center);
+                        }
+                        if(e.roomId !== undefined){
+                            for(let other of enemies){
+                                if(other.roomId === e.roomId && other !== e && other.alive && !other.aggroed) other.aggroed = true;
+                            }
+                        }
+                    }
+                }
+                updateUI();
+            }
+            
+            // ATAQUE DE FUEGO MEJORADO: radio amplio 6.8 y ángulo 75 grados (cos 0.25)
+            function fireCone(){
+                if(!gameActive || !player) return;
+                const angle = player.rotation.y;
+                const forward = new BABYLON.Vector3(Math.sin(angle), 0, Math.cos(angle)).normalize();
+                const origin = player.position.clone();
+                origin.y += 1.0;
+                for(let i=0;i<4;i++) createExplosion(origin.add(forward.scale(1.5)), new BABYLON.Color4(1,0.5,0.1,1), new BABYLON.Color4(1,0.2,0,1));
+                const coneRadius = 6.8;
+                const coneDotMin = 0.28;  // ~74 grados de apertura efectiva
+                let hitCount = 0;
+                for(let e of enemies){
+                    if(!e.alive) continue;
+                    const toEnemy = e.mesh.position.subtract(origin);
+                    const dist = toEnemy.length();
+                    if(dist > coneRadius) continue;
+                    const dot = BABYLON.Vector3.Dot(forward, toEnemy.normalize());
+                    if(dot > coneDotMin){
+                        e.health -= 48;
+                        if(e.health<=0){
+                            if(e.mesh) e.mesh.dispose();
+                            e.alive = false;
+                            dropLoot(e.mesh.position.clone());
+                        }
+                        hitCount++;
+                        if(e.roomId !== undefined){
+                            for(let other of enemies){
+                                if(other.roomId === e.roomId && other !== e && other.alive && !other.aggroed) other.aggroed = true;
+                            }
+                        }
+                    }
+                }
+                if(hitCount > 0){
+                    const blastCenter = origin.add(forward.scale(2.0));
+                    for(let i=0;i<3;i++) createExplosion(blastCenter, new BABYLON.Color4(1,0.3,0,1), new BABYLON.Color4(1,0.6,0,1));
+                }
+                updateUI();
+            }
+            
+            function dropLoot(pos){
+                const r = Math.random();
+                if(r < 0.4) gold += 10 + Math.floor(Math.random()*15) + currentDepth*2;
+                else if(r < 0.65) baseDamage += 3;
+                else if(r < 0.85) armor += 2;
+                else currentMana = Math.min(maxMana, currentMana + 40);
+                updateUI();
+            }
+            
+            // ========== NUEVA GENERACIÓN ONE-PAGE DUNGEON ==========
+            function mkRng(seed){ let s=seed>>>0; return ()=>{ s+=0x6D2B79F5; let t=s; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+            
+            function addWallTorchToSegment(posX, posZ, normalX, normalZ, parent, yOff=1.9){
+                const group = new BABYLON.TransformNode("torch_"+Math.random(), scene);
+                group.position.set(posX, yOff, posZ);
+                group.parent = parent;
+                const metal = new BABYLON.StandardMaterial("metal", scene);
+                metal.diffuseColor = new BABYLON.Color3(0.4, 0.33, 0.25);
+                const plate = BABYLON.MeshBuilder.CreateBox("plate", {width:0.25, height:0.2, depth:0.07}, scene);
+                plate.parent = group; plate.material = metal;
+                const handle = BABYLON.MeshBuilder.CreateCylinder("handle", {height:0.45, diameter:0.06}, scene);
+                handle.parent = group; handle.position.set(normalX*0.13, 0.28, normalZ*0.13); handle.material = metal;
+                const bowl = BABYLON.MeshBuilder.CreateCylinder("bowl", {height:0.18, diameterTop:0.28, diameterBottom:0.1}, scene);
+                bowl.parent = group; bowl.position.set(normalX*0.13, 0.58, normalZ*0.13); bowl.material = metal;
+                const flameMat = new BABYLON.StandardMaterial("flame", scene);
+                flameMat.diffuseColor = new BABYLON.Color3(1,0.6,0.05);
+                flameMat.emissiveColor = new BABYLON.Color3(0.9,0.3,0);
+                const flame = BABYLON.MeshBuilder.CreateCylinder("flame", {height:0.4, diameterTop:0, diameterBottom:0.2}, scene);
+                flame.parent = group; flame.position.set(normalX*0.13, 0.87, normalZ*0.13); flame.material = flameMat;
+                const light = new BABYLON.PointLight("torchLight", new BABYLON.Vector3(normalX*0.5, 0.95, normalZ*0.5), scene);
+                light.parent = group;
+                light.intensity = 3.2;
+                light.range = 12;
+                light.diffuse = new BABYLON.Color3(1,0.5,0.15);
+                let tOff = Math.random()*10;
+                scene.onBeforeRenderObservable.add(()=>{
+                    tOff += engine.getDeltaTime()/1000;
+                    const flicker = 0.85 + Math.sin(tOff*15)*0.1;
+                    light.intensity = 3.2 * flicker;
+                    flame.scaling.set(1, 0.85 + Math.sin(tOff*12)*0.12, 1);
+                });
+            }
+            
+            function generateDungeon(levelSeed, mapSize, nRooms, wallH, wallT) {
+                const rng = mkRng(levelSeed);
+                const cellSz = 1.35;
+                const grid = Array.from({ length: mapSize }, () => new Uint8Array(mapSize));
+                const rooms = [];
+
+                function isAreaFree(x, y, w, h) {
+                    if (x < 1 || y < 1 || x + w > mapSize - 1 || y + h > mapSize - 1) return false;
+                    for (let gy = y - 1; gy <= y + h; gy++) {
+                        for (let gx = x - 1; gx <= x + w; gx++) {
+                            if (grid[gy][gx] !== 0) return false;
+                        }
+                    }
+                    return true;
+                }
+
+                // Habitación central inicial
+                let rw = 5 + Math.floor(rng() * 4), rh = 5 + Math.floor(rng() * 4);
+                let rx = Math.floor(mapSize / 2 - rw / 2), ry = Math.floor(mapSize / 2 - rh / 2);
+                rooms.push({ x: rx, y: ry, w: rw, h: rh });
+                for (let gy = ry; gy < ry + rh; gy++) for (let gx = rx; gx < rx + rw; gx++) grid[gy][gx] = 1;
+
+                // Añadir habitaciones conectadas
+                for (let i = 0; i < nRooms; i++) {
+                    let added = false;
+                    for (let tries = 0; tries < 30; tries++) {
+                        const parent = rooms[Math.floor(rng() * rooms.length)];
+                        const side = Math.floor(rng() * 4);
+                        let nw = 4 + Math.floor(rng() * 5), nh = 4 + Math.floor(rng() * 5);
+                        let nx, ny, px, py;
+                        if (side === 0) { nx = parent.x + Math.floor(rng()*(parent.w-nw)); ny = parent.y - nh - 2; px = parent.x + Math.floor(parent.w/2); py = parent.y - 1; }
+                        else if (side === 1) { nx = parent.x + parent.w + 2; ny = parent.y + Math.floor(rng()*(parent.h-nh)); px = parent.x + parent.w; py = parent.y + Math.floor(parent.h/2); }
+                        else if (side === 2) { nx = parent.x + Math.floor(rng()*(parent.w-nw)); ny = parent.y + parent.h + 2; px = parent.x + Math.floor(parent.w/2); py = parent.y + parent.h; }
+                        else { nx = parent.x - nw - 2; ny = parent.y + Math.floor(rng()*(parent.h-nh)); px = parent.x - 1; py = parent.y + Math.floor(parent.h/2); }
+                        if (isAreaFree(nx, ny, nw, nh)) {
+                            for (let gy = ny; gy < ny + nh; gy++) for (let gx = nx; gx < nx + nw; gx++) grid[gy][gx] = 1;
+                            grid[py][px] = 2;
+                            if (side === 0 || side === 2) { grid[py + (side === 0 ? -1 : 1)][px] = 2; }
+                            else { grid[py][px + (side === 3 ? -1 : 1)] = 2; }
+                            rooms.push({ x: nx, y: ny, w: nw, h: nh });
+                            added = true; break;
+                        }
+                    }
+                    if (!added && i === 0) break;
+                }
+
+                // Construcción visual con muros y antorchas
+                const rootNode = new BABYLON.TransformNode("dungeon_root", scene);
+                const wallTex = new BABYLON.Texture("https://i.ibb.co/rR8f8QWg/Copilot-20260501-175332.png", scene);
+                const floorTexInt = new BABYLON.Texture("https://i.ibb.co/prdbDwrj/Copilot-20260501-170824.png", scene);
+                const wallMat = new BABYLON.StandardMaterial("wall", scene); wallMat
